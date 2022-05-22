@@ -211,6 +211,7 @@ void WriteFile(std::string& str, node* phead, const std::string& filename) {
     std::string Fname = "(comp)" + filename;
     std::ofstream fout(Fname);
     int len = (int)str.size() / BIT8 + 1;
+    std::cout << len << "\n";
     std::string res;
     fout << phead->len;
     unsigned char count_zero = 0;
@@ -236,8 +237,11 @@ void WriteFile(std::string& str, node* phead, const std::string& filename) {
     for (int i = 0; i < count_zero; i++) {
         str = '0' + str;
     }
+    fout << len << count_zero;
     Coding(str, res, count_zero, len);
-    fout << res;
+    for (char i: res) {
+        fout << i;
+    }
     fout.close();
 }
 
@@ -264,59 +268,53 @@ void From10To2(unsigned char number, std::string &result) {
 void DecodeString(std::string &new_string, std::string &old_string, node* phead, int minlen) {
     std::string current;
     int count = 0;
-    for (auto symb: new_string) {
-        current += symb;
-        count++;
-        if (count < minlen) {
-            continue;
-        }
-        node* temp = phead;
-        while (temp) {
-            if (temp->code == current) {
-                old_string += temp->symb;
-                std::string temp = new_string;
-                new_string = "";
-                for (int i = count; i < temp.size(); i++) {
-                    new_string = temp[i];
-                }
-                current = "";
-                count = 0;
-                break;
+    bool flag = true;
+    while (flag) {
+        flag = false;
+        for (auto symb: new_string) {
+            current += symb;
+            count++;
+            if (count < minlen) {
+                continue;
             }
-            temp = temp->next;
+            node *temp = phead;
+            while (temp) {
+                if (temp->code == current) {
+                    old_string += (char) temp->symb;
+                    new_string = new_string.substr(count, new_string.size() - count);
+                    current = "";
+                    count = 0;
+                    flag = true;
+                    break;
+                }
+                temp = temp->next;
+            }
+            if (flag)
+                break;
         }
     }
 }
 
 
 void WriteDecodeFile(const std::string &filename) {
-    std::fstream finn(filename);
-    std::string input_string;
-    while (!finn.eof()) {
-        std::string dop;
-        std::getline(finn, dop);
-        input_string += dop;
-        if (!finn.eof()) {
-            input_string += '\n';
-        }
-    }
-    finn.close();
-    std::cout << input_string;
+    std::fstream fin(filename);
     node* phead = new node;
-    unsigned char len_phead;
-    int minlen = 0;
+    auto len_phead = (unsigned char)fin.get();
+    int minlen = 32 * 8 + 1;
     std::string old_string;
-    len_phead = (unsigned char)input_string[0];
-    int k = 1;
+    char dop;
     for (int i = 0; i < len_phead; i++) {
-        unsigned char symb, byte_for_symbol, count_zero;
-        symb = input_string[k++];
-        byte_for_symbol = (unsigned char)input_string[k++];
-        count_zero = (unsigned char)input_string[k++];
+        unsigned char byte_for_symbol, count_zero;
+        char symb;
+        fin.get(symb);
+        fin.get(dop);
+        byte_for_symbol = (unsigned char)dop;
+        fin.get(dop);
+        count_zero = (unsigned char)dop;
         std::string code;
         for (int j = 0; j < (int)byte_for_symbol; j++) {
-            auto c = (unsigned char)input_string[k++];
-
+            fin.get(dop);
+            auto c = (unsigned char)dop;
             std::string code_byte;
             if (count_zero > 0) {
                 std::string code_byte_temp;
@@ -344,12 +342,17 @@ void WriteDecodeFile(const std::string &filename) {
             minlen = std::min(minlen, (int)pnew->code.size());
         }
     }
-    auto count_zero = (unsigned char)input_string[k++];
     std::string new_string;
-
-    return;
-    while (k != input_string.size()) {
-        auto c = (unsigned char)input_string[k++];
+    int tt = 0, len = 0;
+    //fin.read((char*)&len, sizeof(len));
+    fin >> len;
+    fin.get(dop);
+    auto count_zero = (unsigned char)dop;
+    std::cout << len << '\n';
+    for (int k = 0; k < len; k++) {
+        tt++;
+        auto c = (unsigned char)fin.get();;
+        std::cout << (int)c << " ";
         std::string code_byte;
         if (count_zero > 0) {
             std::string code_byte_temp;
@@ -363,8 +366,12 @@ void WriteDecodeFile(const std::string &filename) {
             From10To2(c, code_byte);
         }
         new_string += code_byte;
+        std::cout << new_string << " ";
         DecodeString(new_string, old_string, phead, minlen);
+        std::cout << new_string << " ok\n";
     }
+    //std::cout << tt;
+    fin.close();
     DeleteList(phead);
     std::ofstream fout("(decode)" + filename);
     fout << old_string;
@@ -374,6 +381,14 @@ void WriteDecodeFile(const std::string &filename) {
 
 
 int main() {
+    std::ofstream fout("ff.txt");
+    char a = 257;
+    fout << a << 'r' << 'v' << a;
+    fout.close();
+    std::ifstream fin("ff.txt");
+    while(!fin.eof()) {
+        std::cout << (int)fin.get() << " ";
+    }
     std::cout << "What do you want? \nPress \"1\" to compress\nPress \"2\" to uncompress\n";
     std::string answer;
     std::cin >> answer;
@@ -413,6 +428,7 @@ int main() {
         node *ptree = MakeTree(phead);
         MakeCode(ptree);
         phead = MakeList(ptree);
+        PrintList(phead);
         FindLength(phead);
         std::string new_string = MakeNewString(input_string, phead);
         WriteFile(new_string, phead, filename);
