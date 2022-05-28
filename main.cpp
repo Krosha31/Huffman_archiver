@@ -169,11 +169,13 @@ std::string MakeNewString(std::string input_string, node* phead) {
 
 
 char ReturnBit(int i, int k, unsigned char &count_zero, const std::string &str) {
+    //Фактически бесполезна. Можно эту строчку просто вставить на места вызова
     return str[i * BIT8 + k];
 }
 
 
 void Coding(const std::string &str, std::string &res, unsigned char count_zero, int len) {
+    //Функция Лупановой(почти). Она переделывает 8 символов 0 и 1 в один байт типа char
     bit2char symb;
     for (int i = 0; i < len; i++)
     {
@@ -195,6 +197,7 @@ void Coding(const std::string &str, std::string &res, unsigned char count_zero, 
 
 
 void FindLength(node* phead) {
+    //Находит длину списка
     node* temp = phead;
     unsigned char count = 0;
     while (temp) {
@@ -208,7 +211,10 @@ void FindLength(node* phead) {
 
 
 void WriteFile(std::string& str, node* phead, const std::string& filename) {
-    std::string Fname = "(comp)" + filename;
+    //Запись в файл. Советую тестировать те файлы, которые лежат вместе с файлом main.exe, т.к. нормальной работы с
+    //абсолютными(и даже относительными путями) пока нет
+    //Открываем файл, записываем туда длину списка
+    std::string Fname = "comp" + filename;
     std::ofstream fout(Fname);
     int len = (int)str.size() / BIT8 + 1;
     std::cout << len << "\n";
@@ -216,23 +222,32 @@ void WriteFile(std::string& str, node* phead, const std::string& filename) {
     fout << phead->len;
     unsigned char count_zero = 0;
     node* current = phead;
+    //Запись информации об алфавите в файл. Записывается: 1)исходная буква 2)Количество байт которое нужно для записи
+    // кода буквы(в типе char) 3) Количество бесполезных нулей(то есть могут быть коды 001 и 0001, переводя их в char
+    //мы одинаково получаем 1, то есть с точки зрения char'a они неразличимы. Поэтому мы храним количество бесполензых нулей
+    // В первом случае будет 5, во втором 4.
     while (current) {
         unsigned char byte_for_symbol = 0;
+        //Считаем количество байт, которое нам нужно для записи кода(делим на 8 тк чаром мы записываем сразу 8 разрядов)
         if (current->code.size() % 8 != 0) {
             byte_for_symbol = 1;
         }
         byte_for_symbol += current->code.size() / 8;
         count_zero = byte_for_symbol * BIT8 - current->code.size();
+        //Добавляем нули чтобы длина кода делилась на 8 и функция Coding нормально работала
         for (int k = 0; k < count_zero; k++) {
             current->code  = '0' + current->code;
         }
+        //выводим в файл
         fout << current->symb << byte_for_symbol << count_zero;
+        //выводим код представленный в char'ах
         Coding(current->code, res, count_zero, byte_for_symbol);
         fout << res;
 
         res = "";
         current = current->next;
     }
+    // В сущности делаем то же самое только для сообщения
     count_zero = len * BIT8 - str.size();
     for (int i = 0; i < count_zero; i++) {
         str = '0' + str;
@@ -247,6 +262,7 @@ void WriteFile(std::string& str, node* phead, const std::string& filename) {
 
 
 void From10To2(unsigned char number, std::string &result) {
+    //Перевод из  сhar обратно в двоичный код
     std::string dop;
     while (number != 0) {
         dop += number % 2 + '0';
@@ -266,6 +282,8 @@ void From10To2(unsigned char number, std::string &result) {
 
 
 void DecodeString(std::string &new_string, std::string &old_string, node* phead, int minlen) {
+    //Декодирование строки. На вход подается строка из 0 и 1(с уже обрезанными лишними нулями) и начинается поиск
+    // в списке phead соответсвующей буквы. Напомню, код префиксный
     std::string current;
     int count = 0;
     bool flag = true;
@@ -297,13 +315,24 @@ void DecodeString(std::string &new_string, std::string &old_string, node* phead,
 
 
 void WriteDecodeFile(const std::string &filename) {
+    //Не работает по любому что то здесь
+    //Открываем файл на чтение, считываем длину списка с помощью get
     std::fstream fin(filename);
+    char c;
+    std::string dopp;
+    while ((c = fin.get()) != EOF) {
+        dopp += c;
+    }
+    std::cout << '\n' << dopp.size();
+    return;
     node* phead = new node;
     auto len_phead = (unsigned char)fin.get();
     int minlen = 32 * 8 + 1;
     std::string old_string;
     char dop;
     for (int i = 0; i < len_phead; i++) {
+        // Считывание каждого элемента списка. Сначала сам символ, потом количество занимаемых байт для кода и количество
+        //бесполезных нулей
         unsigned char byte_for_symbol, count_zero;
         char symb;
         fin.get(symb);
@@ -312,6 +341,7 @@ void WriteDecodeFile(const std::string &filename) {
         fin.get(dop);
         count_zero = (unsigned char)dop;
         std::string code;
+        //Считвание кода. Перевод его из char обратно в string и создание списка(вникать не надо, тут все работает хорошо)
         for (int j = 0; j < (int)byte_for_symbol; j++) {
             fin.get(dop);
             auto c = (unsigned char)dop;
@@ -342,6 +372,9 @@ void WriteDecodeFile(const std::string &filename) {
             minlen = std::min(minlen, (int)pnew->code.size());
         }
     }
+    //Беда предположительно начинается здесь. В сущности мы делаем абсолютно то де самое, что и шагом ранее, только для
+    //самого закодированного сообщения. Считываем его длину(в char'ах) и раскодируем в 0 и 1
+    //Но почему-то файл читается не до конца, это уже обсуждалось
     std::string new_string;
     int tt = 0, len = 0;
     //fin.read((char*)&len, sizeof(len));
@@ -352,7 +385,7 @@ void WriteDecodeFile(const std::string &filename) {
     for (int k = 0; k < len; k++) {
         tt++;
         auto c = (unsigned char)fin.get();;
-        std::cout << (int)c << " ";
+        //std::cout << (int)c << " ";
         std::string code_byte;
         if (count_zero > 0) {
             std::string code_byte_temp;
@@ -366,9 +399,9 @@ void WriteDecodeFile(const std::string &filename) {
             From10To2(c, code_byte);
         }
         new_string += code_byte;
-        std::cout << new_string << " ";
+        //Вызывается каждую итерацию цикла чтобы не захламлять память
         DecodeString(new_string, old_string, phead, minlen);
-        std::cout << new_string << " ok\n";
+        //std::cout << new_string << " ok\n";
     }
     //std::cout << tt;
     fin.close();
@@ -381,14 +414,15 @@ void WriteDecodeFile(const std::string &filename) {
 
 
 int main() {
-    std::ofstream fout("ff.txt");
-    char a = 257;
-    fout << a << 'r' << 'v' << a;
-    fout.close();
-    std::ifstream fin("ff.txt");
-    while(!fin.eof()) {
-        std::cout << (int)fin.get() << " ";
-    }
+//    std::ofstream fout("fff.txt");
+//    char a = 232;
+//    fout << 'v' << a << EOF << a;
+//    fout.close();
+//    std::ifstream fin("fff.txt");
+//    while(!fin.eof()) {
+//        std::cout << (int)fin.get() << " ";
+//    }
+//    fin.close();
     std::cout << "What do you want? \nPress \"1\" to compress\nPress \"2\" to uncompress\n";
     std::string answer;
     std::cin >> answer;
@@ -428,13 +462,12 @@ int main() {
         node *ptree = MakeTree(phead);
         MakeCode(ptree);
         phead = MakeList(ptree);
-        PrintList(phead);
         FindLength(phead);
         std::string new_string = MakeNewString(input_string, phead);
         WriteFile(new_string, phead, filename);
         DeleteTree(ptree);
         DeleteList(phead);
-        WriteDecodeFile("(comp)" + filename);
+        WriteDecodeFile("comp" + filename);
     }
     else {
         WriteDecodeFile(filename);
