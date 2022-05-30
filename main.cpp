@@ -77,7 +77,7 @@ void PrintList(const node* phead) {
         std::cout << phead->symb << " " << phead->code << std::endl;
         phead = phead->next;
     }
-    std::cout << std::endl;
+    std::cout << "\n";
 }
 
 
@@ -169,13 +169,11 @@ std::string MakeNewString(std::string input_string, node* phead) {
 
 
 char ReturnBit(int i, int k, unsigned char &count_zero, const std::string &str) {
-    //Фактически бесполезна. Можно эту строчку просто вставить на места вызова
     return str[i * BIT8 + k];
 }
 
 
 void Coding(const std::string &str, std::string &res, unsigned char count_zero, int len) {
-    //Функция Лупановой(почти). Она переделывает 8 символов 0 и 1 в один байт типа char
     bit2char symb;
     for (int i = 0; i < len; i++)
     {
@@ -197,7 +195,6 @@ void Coding(const std::string &str, std::string &res, unsigned char count_zero, 
 
 
 void FindLength(node* phead) {
-    //Находит длину списка
     node* temp = phead;
     unsigned char count = 0;
     while (temp) {
@@ -208,51 +205,55 @@ void FindLength(node* phead) {
 }
 
 
+std::string MakeNewName(std::string filename, std::string pref) {
+    std::string res;
+    bool flag = true;
+    for (char c: filename) {
+        if (c == '.') {
+            flag = false;
+            res += pref;
+        }
+        res += c;
+    }
+    if (flag) {
+        res = filename + pref;
+    }
+    return res;
+}
+
+
 
 
 void WriteFile(std::string& str, node* phead, const std::string& filename) {
-    //Запись в файл. Советую тестировать те файлы, которые лежат вместе с файлом main.exe, т.к. нормальной работы с
-    //абсолютными(и даже относительными путями) пока нет
-    //Открываем файл, записываем туда длину списка
-    std::string Fname = "(comp)" + filename;
+    std::string Fname = MakeNewName(filename, "(comp)");
     std::ofstream fout(Fname);
     int len = (int)str.size() / BIT8 + 1;
-    std::cout << len << "\n";
     std::string res;
     fout << phead->len;
     unsigned char count_zero = 0;
     node* current = phead;
-    //Запись информации об алфавите в файл. Записывается: 1)исходная буква 2)Количество байт которое нужно для записи
-    // кода буквы(в типе char) 3) Количество бесполезных нулей(то есть могут быть коды 001 и 0001, переводя их в char
-    //мы одинаково получаем 1, то есть с точки зрения char'a они неразличимы. Поэтому мы храним количество бесполензых нулей
-    // В первом случае будет 5, во втором 4.
     while (current) {
         unsigned char byte_for_symbol = 0;
-        //Считаем количество байт, которое нам нужно для записи кода(делим на 8 тк чаром мы записываем сразу 8 разрядов)
         if (current->code.size() % 8 != 0) {
             byte_for_symbol = 1;
         }
         byte_for_symbol += current->code.size() / 8;
         count_zero = byte_for_symbol * BIT8 - current->code.size();
-        //Добавляем нули чтобы длина кода делилась на 8 и функция Coding нормально работала
         for (int k = 0; k < count_zero; k++) {
             current->code  = '0' + current->code;
         }
-        //выводим в файл
         fout << current->symb << byte_for_symbol << count_zero;
-        //выводим код представленный в char'ах
         Coding(current->code, res, count_zero, byte_for_symbol);
         fout << res;
 
         res = "";
         current = current->next;
     }
-    // В сущности делаем то же самое только для сообщения
     count_zero = len * BIT8 - str.size();
     for (int i = 0; i < count_zero; i++) {
         str = '0' + str;
     }
-    fout << len << count_zero;
+    fout << count_zero;
     Coding(str, res, count_zero, len);
     for (char i: res) {
         fout << i;
@@ -262,7 +263,6 @@ void WriteFile(std::string& str, node* phead, const std::string& filename) {
 
 
 void From10To2(unsigned char number, std::string &result) {
-    //Перевод из  сhar обратно в двоичный код
     std::string dop;
     while (number != 0) {
         dop += number % 2 + '0';
@@ -270,7 +270,7 @@ void From10To2(unsigned char number, std::string &result) {
     }
     if (dop.size() < BIT8) {
         for (int i = 0; i < BIT8 - dop.size(); i++) {
-            result += "0";
+            result += '0';
         }
     }
     for (int i = dop.size() - 1; i >= 0; i--) {
@@ -281,8 +281,6 @@ void From10To2(unsigned char number, std::string &result) {
 
 
 void DecodeString(std::string &new_string, std::string &old_string, node* phead, int minlen) {
-    //Декодирование строки. На вход подается строка из 0 и 1(с уже обрезанными лишними нулями) и начинается поиск
-    // в списке phead соответсвующей буквы. Напомню, код префиксный
     std::string current;
     int count = 0;
     bool flag = true;
@@ -313,33 +311,33 @@ void DecodeString(std::string &new_string, std::string &old_string, node* phead,
 }
 
 
-void WriteDecodeFile(const std::string &filename) {
-    //Не работает по любому что то здесь
-    //Открываем файл на чтение, считываем длину списка с помощью get
+int WriteDecodeFile(const std::string &filename) {
     std::fstream fin(filename);
+    if (!fin.is_open()) {
+        std::cout << "There's no such file in this directory";
+        return 0;
+    }
     node* phead = new node;
-    auto len_phead = (unsigned char)fin.get();
+    auto len_phead = (int)(unsigned char)fin.get();
+    if (len_phead == 0)
+        len_phead = 256;
     int minlen = 32 * 8 + 1;
     std::string old_string;
     for (int i = 0; i < len_phead; i++) {
-        // Считывание каждого элемента списка. Сначала сам символ, потом количество занимаемых байт для кода и количество
-        //бесполезных нулей
         unsigned char byte_for_symbol, count_zero;
         char symb;
         symb = fin.get();
         byte_for_symbol = fin.get();
         count_zero = fin.get();
         std::string code;
-        //Считвание кода. Перевод его из char обратно в string и создание списка(вникать не надо, тут все работает хорошо)
         for (int j = 0; j < (int)byte_for_symbol; j++) {
             auto c = fin.get();
             std::string code_byte;
             if (count_zero > 0) {
                 std::string code_byte_temp;
                 From10To2(c, code_byte_temp);
-                for (int t = count_zero; t < byte_for_symbol * BIT8; t++) {
-                    code_byte += code_byte_temp[t];
-                }
+                code_byte = code_byte_temp.substr(count_zero, byte_for_symbol * BIT8 - count_zero);
+                count_zero = 0;
             }
             else {
                 From10To2(c, code_byte);
@@ -360,17 +358,13 @@ void WriteDecodeFile(const std::string &filename) {
             minlen = std::min(minlen, (int)pnew->code.size());
         }
     }
-    //Беда предположительно начинается здесь. В сущности мы делаем абсолютно то де самое, что и шагом ранее, только для
-    //самого закодированного сообщения. Считываем его длину(в char'ах) и раскодируем в 0 и 1
-    //Но почему-то файл читается не до конца, это уже обсуждалось
     std::string new_string;
-    int len = 0;
-    //fin.read((char*)&len, sizeof(len));
-    fin >> len;
     auto count_zero = (unsigned char)fin.get();
-    for (int k = 0; k < len; k++) {
+    while (!fin.eof()) {
         auto c = (unsigned char)fin.get();
-        //std::cout << (int)c << " ";
+        if (fin.eof()) {
+            break;
+        }
         std::string code_byte;
         if (count_zero > 0) {
             std::string code_byte_temp;
@@ -384,28 +378,20 @@ void WriteDecodeFile(const std::string &filename) {
             From10To2(c, code_byte);
         }
         new_string += code_byte;
-        //Вызывается каждую итерацию цикла чтобы не захламлять память
         DecodeString(new_string, old_string, phead, minlen);
     }
     fin.close();
     DeleteList(phead);
-    std::ofstream fout("(decode)" + filename);
+    std::string Fname = MakeNewName(filename, "(decode)");
+    std::ofstream fout(Fname);
     fout << old_string;
     fout.close();
+    return 1;
 }
 
 
 
 int main() {
-//    std::ofstream fout("fff.txt");
-//    char a = 232;
-//    fout << 'v' << a << EOF << a;
-//    fout.close();
-//    std::ifstream fin("fff.txt");
-//    while(!fin.eof()) {
-//        std::cout << (int)fin.get() << " ";
-//    }
-//    fin.close();
     std::cout << "What do you want? \nPress \"1\" to compress\nPress \"2\" to uncompress\n";
     std::string answer;
     std::cin >> answer;
@@ -419,6 +405,10 @@ int main() {
     if (answer == "1") {
         std::string input_string;
         std::ifstream fin(filename);
+        if (!fin.is_open()) {
+            std::cout << "There's no such file in this directory";
+            return 0;
+        }
         while (!fin.eof()) {
             std::string dop;
             std::getline(fin, dop);
@@ -450,11 +440,12 @@ int main() {
         WriteFile(new_string, phead, filename);
         DeleteTree(ptree);
         DeleteList(phead);
-        WriteDecodeFile("(comp)" + filename);
+        std::cout << "OK";
     }
     else {
-        WriteDecodeFile(filename);
+        int status = WriteDecodeFile(filename);
+        if (status)
+            std::cout << "OK";
     }
-    std::cout << "OK";
     return 0;
 }
